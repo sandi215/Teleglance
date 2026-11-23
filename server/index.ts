@@ -87,6 +87,23 @@ app.get('/api/digest', (req, res) => {
   })
 })
 
+app.get('/api/messages', (req, res) => {
+  const chatId = String(req.query.chat ?? '')
+  if (!chatId) {
+    res.status(400).json({ error: 'missing ?chat=<id>' })
+    return
+  }
+  const chat = store.getChat(chatId)
+  if (!chat) {
+    res.status(404).json({ error: `unknown chat ${chatId}` })
+    return
+  }
+  res.json({
+    chat: { id: chat.id, title: chat.title, kind: chat.kind },
+    messages: store.getMessages(chatId),
+  })
+})
+
 const PORT = Number(process.env.PORT ?? 3000)
 app.listen(PORT, () => {
   console.log(`[teleglance-server] listening on http://localhost:${PORT}`)

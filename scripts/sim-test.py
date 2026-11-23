@@ -103,14 +103,24 @@ def main():
     assert not errs, f"console errors at boot: {errs[:3]}"
     print("console: no errors at boot")
 
-    # Journey: tap into first chat (home -> detail), screenshot, assert change.
-    post_json(args.base, "/api/input", {"action": "click"})
-    time.sleep(1.0)
-    detail = get_png(args.base, "/api/screenshot/glasses")
-    detail.save(f"{args.out}/02-detail.png")
-    n_detail = lit_pixels(detail)
-    assert abs(n_detail - n_boot) > 20, "screen did not change after tap"
-    print(f"after tap: {n_detail} lit px (changed: OK)")
+    # Journey (Day 3): home -> detail p1 -> detail p2 -> digest -> home.
+    # Assert pixel-level change (not just lit totals — two different
+    # screens can share a similar lit count).
+    def diff_pixels(a, b):
+        return sum(1 for x, y in zip(a.getdata(), b.getdata()) if x != y)
+
+    prev, n_prev = boot, n_boot
+    for i, name in enumerate(
+        ["02-detail-p1", "03-detail-p2", "04-digest", "05-home-again"], start=1
+    ):
+        post_json(args.base, "/api/input", {"action": "click"})
+        time.sleep(1.0)
+        shot = get_png(args.base, "/api/screenshot/glasses")
+        shot.save(f"{args.out}/{name}.png")
+        d = diff_pixels(prev, shot)
+        assert d > 100, f"screen did not change after tap {i} ({name}, diff {d}px)"
+        print(f"after tap {i} ({name}): {lit_pixels(shot)} lit px (diff {d}px: OK)")
+        prev, n_prev = shot, lit_pixels(shot)
 
     # Double-tap on root should raise the system exit dialog (QA requirement).
     post_json(args.base, "/api/input", {"action": "double_click"})
@@ -118,9 +128,9 @@ def main():
     post_json(args.base, "/api/input", {"action": "double_click"})
     time.sleep(0.5)
     after_exit = get_png(args.base, "/api/screenshot/glasses")
-    after_exit.save(f"{args.out}/03-exit-dialog.png")
+    after_exit.save(f"{args.out}/06-exit-dialog.png")
     n_exit = lit_pixels(after_exit)
-    assert abs(n_exit - n_detail) > 20, "exit dialog did not appear on double-tap"
+    assert abs(n_exit - n_prev) > 20, "exit dialog did not appear on double-tap"
     print(f"after double-tap: {n_exit} lit px (exit dialog: OK)")
 
     print("SIM TEST: PASS")

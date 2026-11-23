@@ -1,6 +1,19 @@
-// In-memory inbox store. Single process, no DB: the demo backend keeps
-// chats + messages in memory; the poll loop (telegram.ts) feeds it and the
-// demo seeder (demo-seed.ts) fills it with scripted messages in demo mode.
+// In-memory inbox store with JSON-file persistence. Single process, no
+// DB: the demo backend keeps chats + messages in memory; the poll loop
+// (telegram.ts) feeds it and the demo seeder (demo-seed.ts) fills it with
+// scripted messages in demo mode. State is saved to server/data/inbox.json
+// after every write so a backend restart does not lose real Telegram
+// messages already consumed from the getUpdates queue.
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const DATA_FILE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  'data',
+  'inbox.json',
+)
 
 export interface ChatMessage {
   id: string
@@ -59,6 +72,42 @@ export class InboxStore {
   private chats = new Map<string, ChatSummary>()
   private messages = new Map<string, ChatMessage[]>()
 
+  constructor() {
+    if (existsSync(DATA_FILE)) {
+      try {
+        const raw = JSON.parse(readFileSync(DATA_FILE, 'utf-8')) as {
+          chats: ChatSummary[]
+          messages: Record<string, ChatMessage[]>
+        }
+        for (const c of raw.chats ?? []) this.chats.set(c.id, c)
+        for (const [k, v] of Object.entries(raw.messages ?? {})) {
+          this.messages.set(k, v)
+        }
+      } catch {
+        // Corrupt snapshot: start empty rather than crash the backend.
+      }
+    }
+  }
+
+  private save(): void {
+    try {
+      mkdirSync(dirname(DATA_FILE), { recursive: true })
+      writeFileSync(
+        DATA_FILE,
+        JSON.stringify(
+          {
+            chats: [...this.chats.values()],
+            messages: Object.fromEntries(this.messages),
+          },
+          null,
+          2,
+        ),
+      )
+    } catch {
+      // Persistence is best-effort; the in-memory store keeps working.
+    }
+  }
+
   addMessage(chatId: string, title: string, kind: ChatKind, msg: ChatMessage): void {
     const list = this.messages.get(chatId) ?? []
     if (list.some(m => m.id === msg.id)) return
@@ -73,6 +122,7 @@ export class InboxStore {
       preview: msg.text.slice(0, 80),
       updatedAt: msg.ts,
     })
+    this.save()
   }
 
   /** Feed one getUpdates update (message or channel_post) into the store. */
