@@ -46,7 +46,12 @@ python3 scripts/sim-test.py
 npm run pack
 ```
 
-Produces a `.ehpk` file.
+Produces `teleglance-0.1.0.ehpk` (Even Hub package, `EHPK` magic) from
+`app.json` + `dist/`. The pack step pins `--sdk-ver 0.0.10` so the
+stamped `min_app_version` (2.2.5) matches the SDK the app was built
+against; without it the CLI uses the latest published SDK's floor.
+The package includes `public/icon.png` (24×24 greyscale glasses mark),
+copied into `dist/` by the build.
 
 ## Backend config
 
@@ -62,7 +67,30 @@ Copy `.env.example` to `server/.env`:
 - `DEMO_MODE=1` — scripted demo data + scripted transcripts (the headless
   simulator has no live mic).
 
-Endpoints: `GET /health`, `GET /api/inbox`, `GET /api/digest?chat=<id>`.
+Endpoints: `GET /health`, `GET /api/inbox`, `GET /api/messages?chat=<id>`,
+`GET /api/digest?chat=<id>`, `POST /api/stt` (PCM → transcript),
+`POST /api/draft` (transcript → reply draft, variants via Rewrite),
+`POST /api/send` (Bot API `sendMessage`; demo chats resolve to
+`DEMO_TARGET_CHAT` when set, otherwise an honest demo stub).
+
+## QA (Day 5)
+
+Headless journey test (`python3 scripts/sim-test.py`, simulator
+automation port 9898): boot 4839 lit px, no console errors at boot,
+12-step tap journey home → detail → reply → digest → home → detail →
+reply → record → menu → sent → home, every step changes the screen
+(>100 px diff), double-tap on root fires `DOUBLE_CLICK_EVENT`
+(eventType 3, verified in the console) and closes the page container.
+
+Note on the exit dialog: `shutDownPageContainer(1)` raises a **system**
+foreground dialog — the user decides whether to exit — so it does not
+render inside the app page container and is not visible in the glasses
+screenshot. The verifiable evidence is the console eventType 3 + the
+container closing (0 lit px). The 30 s inbox refresh timer is cleared
+on exit, so no `container 1 not found` errors appear after shutdown.
+
+Production builds are clean: `npm run build` (`tsc --noEmit` + Vite)
+and `npm --prefix server run build` (`tsc`).
 
 ## Honest scope note — Bot API limits
 

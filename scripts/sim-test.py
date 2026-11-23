@@ -137,6 +137,10 @@ def main():
         prev, n_prev = shot, lit_pixels(shot)
 
     # Double-tap on root should raise the system exit dialog (QA requirement).
+    # The dialog itself is a system foreground layer, not part of the app
+    # page container, so it does not appear in the glasses screenshot.
+    # Verify the exit path actually fired: the console must show the
+    # DOUBLE_CLICK_EVENT (eventType 3) and the container must close.
     post_json(args.base, "/api/input", {"action": "double_click"})
     time.sleep(0.5)
     post_json(args.base, "/api/input", {"action": "double_click"})
@@ -146,6 +150,12 @@ def main():
     n_exit = lit_pixels(after_exit)
     assert abs(n_exit - n_prev) > 20, "exit dialog did not appear on double-tap"
     print(f"after double-tap: {n_exit} lit px (exit dialog: OK)")
+    data = get_json(args.base, "/api/console")
+    assert any(
+        '"eventType":3' in e.get("message", "") or "eventType\":3" in e.get("message", "")
+        for e in data.get("entries", [])
+    ), "no DOUBLE_CLICK_EVENT (eventType 3) in console after double-tap"
+    print("console: DOUBLE_CLICK_EVENT (eventType 3) seen — exit path fired")
 
     print("SIM TEST: PASS")
 
