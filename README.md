@@ -53,11 +53,16 @@ Produces a `.ehpk` file.
 Copy `.env.example` to `server/.env`:
 
 - `TELEGRAM_BOT_TOKEN` — bot token from @BotFather (backend only, **never**
-  in the app bundle, never committed).
+  in the app bundle, never committed). If unset, the backend calls the Bot
+  API through the sanctioned `custom.telegram` connector helper instead
+  (`TELEGRAM_HELPER` overrides its path) — the token never leaves the
+  connector either way.
 - `XINGCHI_API_KEY` — optional LLM key for AI digests/drafts. If unset, the
   backend uses an extractive fallback (first-lines / keyword summary).
 - `DEMO_MODE=1` — scripted demo data + scripted transcripts (the headless
   simulator has no live mic).
+
+Endpoints: `GET /health`, `GET /api/inbox`, `GET /api/digest?chat=<id>`.
 
 ## Honest scope note — Bot API limits
 
