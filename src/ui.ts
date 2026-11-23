@@ -146,3 +146,68 @@ export function digestScreen(digest: Digest, page: number): string {
     'Tap: next · 2x tap: home',
   )
 }
+
+export const REPLY_MENU = ['Send', 'Rewrite', 'Cancel'] as const
+
+export function replyIdleScreen(chat: Chat): string {
+  return frame(
+    `REPLY · ${chat.title.toUpperCase()}`.slice(0, CHARS_PER_LINE),
+    ['Tap to record your reply.', '', 'Speak, then tap again', 'to stop and transcribe.'],
+    'Tap: record · Scroll: digest',
+  )
+}
+
+export function replyRecordingScreen(chat: Chat): string {
+  return frame(
+    `LISTENING · ${chat.title.toUpperCase()}`.slice(0, CHARS_PER_LINE),
+    ['Recording…', '', 'Tap again to stop', 'and transcribe.'],
+    'Tap: stop · 2x tap: home',
+  )
+}
+
+export function replyWorkingScreen(chat: Chat): string {
+  return frame(
+    `REPLY · ${chat.title.toUpperCase()}`.slice(0, CHARS_PER_LINE),
+    ['Transcribing…', 'Drafting your reply…'],
+    'Please wait…',
+  )
+}
+
+/** Transcript + AI draft + Send/Rewrite/Cancel menu (scroll moves focus).
+ * Body budget is 8 lines: transcript ≤2, draft ≤3, menu 3. */
+export function replyMenuScreen(
+  chat: Chat,
+  transcript: string,
+  draft: string,
+  menuFocus: number,
+): string {
+  const body: string[] = []
+  for (const w of wrap(`You: ${transcript}`).slice(0, 2)) body.push(w)
+  for (const w of wrap(`Draft: ${draft}`).slice(0, 3)) body.push(w)
+  REPLY_MENU.forEach((item, i) => {
+    body.push(`${i === menuFocus ? '>' : ' '} ${item}`)
+  })
+  return frame(
+    `REPLY · ${chat.title.toUpperCase()}`.slice(0, CHARS_PER_LINE),
+    body,
+    'Tap: choose · Scroll: move',
+  )
+}
+
+export function replySentScreen(chat: Chat, demo: boolean): string {
+  return frame(
+    demo ? 'SENT (DEMO)' : 'SENT',
+    demo
+      ? [`Reply noted for ${chat.title}.`, '', 'Demo mode — not sent', 'to Telegram.']
+      : [`Reply sent to ${chat.title}.`],
+    'Tap: home',
+  )
+}
+
+export function replyErrorScreen(chat: Chat, message: string): string {
+  return frame(
+    `REPLY · ${chat.title.toUpperCase()}`.slice(0, CHARS_PER_LINE),
+    ['Something went wrong:', ...wrap(message).slice(0, 4)],
+    'Tap: back to chat',
+  )
+}

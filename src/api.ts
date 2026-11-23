@@ -39,6 +39,26 @@ async function getJson<T>(path: string, timeoutMs = 3000): Promise<T> {
   }
 }
 
+async function postJson<T>(path: string, body: unknown, timeoutMs = 15000): Promise<T> {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BACKEND}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ctrl.signal,
+    })
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new Error(err.error ?? `HTTP ${res.status}`)
+    }
+    return (await res.json()) as T
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 // Embedded fallback — mirrors the backend demo seed (server/demo-seed.ts).
 const FALLBACK_CHATS: Chat[] = [
   {
@@ -116,4 +136,37 @@ export async function fetchDigest(chatId: string): Promise<Digest> {
       count: messages.length,
     }
   }
+}
+
+export interface SttResult {
+  transcript: string
+  demo: boolean
+}
+
+/** PCM (base64 s16le 16 kHz mono) -> transcript. Empty audio (or the
+ * simulator's silent mic) asks for the scripted demo transcript. */
+export async function postStt(audioBase64: string, chatId: string): Promise<SttResult> {
+  if (!audioBase64) {
+    return postJson<SttResult>('/api/stt', { demo: true, chatId })
+  }
+  return postJson<SttResult>('/api/stt', { audio: audioBase64, chatId })
+}
+
+export interface DraftResult {
+  draft: string
+  variant: number
+}
+
+export async function postDraft(transcript: string, variant: number): Promise<DraftResult> {
+  return postJson<DraftResult>('/api/draft', { transcript, variant })
+}
+
+export interface SendResult {
+  ok: boolean
+  demo: boolean
+  messageId: string | number | null
+}
+
+export async function postSend(chatId: string, text: string): Promise<SendResult> {
+  return postJson<SendResult>('/api/send', { chatId, text })
 }

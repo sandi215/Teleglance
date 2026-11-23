@@ -103,23 +103,37 @@ def main():
     assert not errs, f"console errors at boot: {errs[:3]}"
     print("console: no errors at boot")
 
-    # Journey (Day 3): home -> detail p1 -> detail p2 -> digest -> home.
+    # Journey (Day 4): home -> detail -> reply -> digest -> home ->
+    # detail -> reply -> record -> menu -> sent -> home -> exit.
     # Assert pixel-level change (not just lit totals — two different
     # screens can share a similar lit count).
     def diff_pixels(a, b):
         return sum(1 for x, y in zip(a.getdata(), b.getdata()) if x != y)
 
+    # (action, sleep_s, shot_name)
+    steps = [
+        ("click", 1.0, "02-detail-p1"),
+        ("click", 1.0, "03-detail-p2"),
+        ("click", 1.0, "04-reply-idle"),
+        ("down", 1.0, "05-digest"),
+        ("click", 1.0, "06-home-again"),
+        ("click", 1.0, "07-detail-p1"),
+        ("click", 1.0, "08-detail-p2"),
+        ("click", 1.0, "09-reply-idle"),
+        ("click", 1.0, "10-recording"),
+        ("click", 2.0, "11-menu"),
+        ("click", 1.5, "12-sent"),
+        ("click", 1.0, "13-home-final"),
+    ]
     prev, n_prev = boot, n_boot
-    for i, name in enumerate(
-        ["02-detail-p1", "03-detail-p2", "04-digest", "05-home-again"], start=1
-    ):
-        post_json(args.base, "/api/input", {"action": "click"})
-        time.sleep(1.0)
+    for i, (action, wait, name) in enumerate(steps, start=1):
+        post_json(args.base, "/api/input", {"action": action})
+        time.sleep(wait)
         shot = get_png(args.base, "/api/screenshot/glasses")
         shot.save(f"{args.out}/{name}.png")
         d = diff_pixels(prev, shot)
-        assert d > 100, f"screen did not change after tap {i} ({name}, diff {d}px)"
-        print(f"after tap {i} ({name}): {lit_pixels(shot)} lit px (diff {d}px: OK)")
+        assert d > 100, f"screen did not change after step {i} ({name}, diff {d}px)"
+        print(f"step {i} {action} ({name}): {lit_pixels(shot)} lit px (diff {d}px: OK)")
         prev, n_prev = shot, lit_pixels(shot)
 
     # Double-tap on root should raise the system exit dialog (QA requirement).
@@ -128,7 +142,7 @@ def main():
     post_json(args.base, "/api/input", {"action": "double_click"})
     time.sleep(0.5)
     after_exit = get_png(args.base, "/api/screenshot/glasses")
-    after_exit.save(f"{args.out}/06-exit-dialog.png")
+    after_exit.save(f"{args.out}/14-exit-dialog.png")
     n_exit = lit_pixels(after_exit)
     assert abs(n_exit - n_prev) > 20, "exit dialog did not appear on double-tap"
     print(f"after double-tap: {n_exit} lit px (exit dialog: OK)")
