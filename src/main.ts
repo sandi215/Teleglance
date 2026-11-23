@@ -53,6 +53,11 @@ type Screen =
 let chats: Chat[] = []
 let focus = 0
 let screen: Screen = { kind: 'home' }
+// Inbox refresh timer (assigned at boot). MUST be cleared on exit —
+// otherwise it keeps calling textContainerUpgrade on the destroyed
+// container every 30s after shutDownPageContainer (spams
+// "container 1 not found" warnings in the simulator log).
+let refreshTimer: ReturnType<typeof setInterval> | undefined
 
 function totalUnread(): number {
   return chats.reduce((s, c) => s + c.unread, 0)
@@ -169,6 +174,7 @@ const unsubscribe = bridge.onEvenHubEvent(event => {
     listType === OsEventTypeList.DOUBLE_CLICK_EVENT
   ) {
     if (screen.kind === 'home') {
+      clearInterval(refreshTimer)
       bridge.shutDownPageContainer(1)
     } else {
       goHome()
@@ -205,6 +211,7 @@ const unsubscribe = bridge.onEvenHubEvent(event => {
     sysType === OsEventTypeList.SYSTEM_EXIT_EVENT ||
     sysType === OsEventTypeList.ABNORMAL_EXIT_EVENT
   ) {
+    clearInterval(refreshTimer)
     unsubscribe()
   }
 })
@@ -217,7 +224,7 @@ console.log('[teleglance] ready')
 // Refresh the inbox every 30s while on home, so new Telegram messages
 // (e.g. a real DM arriving after boot) appear without restarting the
 // app. Detail/digest screens are left alone mid-read.
-setInterval(() => {
+refreshTimer = setInterval(() => {
   if (screen.kind !== 'home') return
   void fetchInbox().then(list => {
     chats = list
