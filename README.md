@@ -107,6 +107,14 @@ a scripted transcript. The real path (mic → backend → Whisper-compatible
 STT endpoint via env var) is implemented from the `asr` template; see
 `server/index.ts`.
 
+## Demo video
+
+`demo/teleglance-demo.mp4` (2:07, captions only, no speaking) — recorded
+in the free simulator: home glance, channel digest, voice reply with AI
+draft, and the reply landing live in the real Telegram demo group
+("TeleGlance Demo"). The send in the video is real: the backend posted
+the draft to the group via the Bot API (`DEMO_TARGET_CHAT`).
+
 ## Money safety
 
 Read-only data + bot sends only. No user funds, no trading, no financial
